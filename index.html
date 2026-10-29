@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Wisconsin Card Sorting Test (WCST)</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000000;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        .screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            padding: 24px;
+            max-width: 800px;
+        }
+        .screen.active {
+            display: flex;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin: 0 0 10px 0;
+            text-align: center;
+            color: #ffffff;
+        }
+
+        .subtitle {
+            font-size: 15px;
+            color: #aaaaaa;
+            margin-bottom: 30px;
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        /* --- CONFIGURATION INTERFACE --- */
+        .config-card {
+            background-color: #111111;
+            border: 1px solid #222222;
+            border-radius: 16px;
+            padding: 24px;
+            width: 100%;
+            max-width: 440px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            text-align: center;
+        }
+        .config-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #888888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+        .config-value {
+            font-size: 22px;
+            font-weight: 700;
+            color: #00ff00;
+            text-shadow: 0 0 10px rgba(0,255,0,0.2);
+        }
+
+        .action-btn {
+            background-color: #ffffff;
+            color: #000000;
+            border: none;
+            padding: 16px 40px;
+            font-size: 18px;
+            font-weight: 700;
+            border-radius: 12px;
+            cursor: pointer;
+            width: 100%;
+            max-width: 260px;
+            transition: transform 0.1s ease, background-color 0.2s ease;
+            touch-action: manipulation;
+        }
+        .action-btn:active {
+            transform: scale(0.97);
+            background-color: #dddddd;
+        }
+
+        /* --- EXPERIMENT INTERACTIVE MATRICES --- */
+        .deck-header-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            width: 100%;
+            margin-bottom: 40px;
+        }
+        .target-card {
+            background-color: #161616;
+            border: 2px solid #262626;
+            border-radius: 14px;
+            aspect-ratio: 1 / 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 24px;
+            font-weight: bold;
+            transition: border-color 0.15s ease, background-color 0.15s ease;
+            touch-action: manipulation;
+        }
+        .target-card:active {
+            background-color: #222222;
+            border-color: #444444;
+        }
+
+        .center-axis-housing {
+            background-color: #111111;
+            border: 2px dashed #333333;
+            border-radius: 20px;
+            width: 180px;
+            height: 180px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 30px;
+            position: relative;
+        }
+        #stimulus {
+            font-family: "Courier New", Courier, monospace;
+            font-size: 40px;
+            font-weight: bold;
+            text-align: center;
+            line-height: 1.2;
+        }
+
+        #feedback {
+            height: 36px;
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        /* --- CLINICAL LEDGER REPORT --- */
+        .ledger-box {
+            width: 100%;
+            max-width: 480px;
+            background-color: #111111;
+            border: 1px solid #222222;
+            border-radius: 16px;
+            padding: 16px 24px;
+            margin-bottom: 35px;
+        }
+        .ledger-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 0;
+            border-bottom: 1px solid #222222;
+            font-size: 16px;
+        }
+        .ledger-line:last-child {
+            border-bottom: none;
+        }
+        .ledger-label {
+            color: #aaaaaa;
+        }
+        .ledger-value {
+            font-weight: 700;
+            color: #ffffff;
+            font-variant-numeric: tabular-nums;
+        }
+        .ledger-line.highlight .ledger-value {
+            color: #00ff00;
+            font-size: 18px;
+        }
+
+        #close-btn {
+            background-color: #ff3333;
+            color: #ffffff;
+        }
+        #close-btn:active {
+            background-color: #cc2222;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen" class="screen active">
+        <h1>WCST: Executive Function Task</h1>
+        <div class="subtitle">Sort by Symbol, Color, or Quantity.<br>Match the active hidden operational rule.</div>
+        
+        <div class="config-card">
+            <div class="config-title">Total Operational Block Run</div>
+            <div class="config-value">96 Trials</div>
+        </div>
+
+        <button class="action-btn" id="start-btn">Start Block</button>
+    </div>
+
+    <div id="game-screen" class="screen">
+        <div class="deck-header-row">
+            <div class="target-card" id="target-0"></div>
+            <div class="target-card" id="target-1"></div>
+            <div class="target-card" id="target-2"></div>
+            <div class="target-card" id="target-3"></div>
+        </div>
+
+        <div class="center-axis-housing">
+            <div id="stimulus">?</div>
+        </div>
+
+        <div id="feedback"></div>
+        <div id="trial-counter" style="color: #666666; font-size: 14px; font-weight: 600;"></div>
+    </div>
+
+    <div id="report-screen" class="screen">
+        <h1 style="color: #00ff00; margin-bottom: 5px;">BLOCK COMPLETE</h1>
+        <div class="subtitle" style="margin-bottom: 25px;">Analytical Scoring Ledger</div>
+
+        <div class="ledger-box">
+            <div class="ledger-line"><span class="ledger-label">Total Completed Trials</span><span class="ledger-value" id="res-trials">0</span></div>
+            <div class="ledger-line"><span class="ledger-label">Correct Responses</span><span class="ledger-value" id="res-score">0</span></div>
+            <div class="ledger-line"><span class="ledger-label">Total Errors</span><span class="ledger-value" id="res-errors">0</span></div>
+            <div class="ledger-line"><span class="ledger-label">Perseverative Errors</span><span class="ledger-value" id="res-perseverative">0</span></div>
+            <div class="ledger-line"><span class="ledger-label">Non-Perseverative Errors</span><span class="ledger-value" id="res-non-perseverative">0</span></div>
+            <div class="ledger-line highlight"><span class="ledger-label">Overall Categorization Accuracy</span><span class="ledger-value" id="res-accuracy">0.0%</span></div>
+        </div>
+
+        <button class="action-btn" id="close-btn" onclick="window.location.reload()">Restart Task</button>
+    </div>
+
+    <script>
+        // --- CONSTANT STRUCTURAL ARRAYS ---
+        const COLORS = ["Red", "DodgerBlue", "Green", "Yellow"];
+        const LETTERS = ["●", "Δ", "▪", "◊"];
+        const NUMBERS = [1, 2, 3, 4];
+        const RULES = ["Color", "Letter", "Number"];
+
+        const TARGETS = [
+            { Color: "Red", Letter: "●", Number: 1 },
+            { Color: "DodgerBlue", Letter: "Δ", Number: 2 },
+            { Color: "Green", Letter: "▪", Number: 3 },
+            { Color: "Yellow", Letter: "◊", Number: 4 }
+        ];
+
+        // --- APPARATUS RUNTIME VALUES ---
+        let currentRule = "";
+        let previousRule = null;
+        const trialsMax = 96; // Strictly locked to 96 trials
+        let currentTrialCount = 0;
+
+        let scoreCorrect = 0;
+        let totalErrors = 0;
+        let perseverativeErrors = 0;
+        let consecutiveCorrectCount = 0;
+        let isGameRunning = false;
+
+        let currentCard = null;
+
+        // --- UI NODE ELEMENT LOCATORS ---
+        const viewScreens = {
+            setup: document.getElementById('setup-screen'),
+            game: document.getElementById('game-screen'),
+            report: document.getElementById('report-screen')
+        };
+        const stimulusNode = document.getElementById('stimulus');
+        const feedbackNode = document.getElementById('feedback');
+        const trialCounterNode = document.getElementById('trial-counter');
+
+        function switchDisplay(viewKey) {
+            Object.values(viewScreens).forEach(screen => screen.classList.remove('active'));
+            viewScreens[viewKey].classList.add('active');
+        }
+
+        function formatCardGlyph(cardObj) {
+            return cardObj.Letter.repeat(cardObj.Number);
+        }
+
+        // --- CORE LOGIC HANDLERS ---
+        function initApparatus() {
+            // Initialize metrics variables
+            currentTrialCount = 0;
+            scoreCorrect = 0;
+            totalErrors = 0;
+            perseverativeErrors = 0;
+            consecutiveCorrectCount = 0;
+            previousRule = null;
+            
+            // Randomly select starting sorting criteria
+            currentRule = RULES[Math.floor(Math.random() * RULES.length)];
+            isGameRunning = true;
+
+            // Render permanent target arrays inside cards
+            for(let i = 0; i < 4; i++) {
+                const targetCardEl = document.getElementById(`target-${i}`);
+                targetCardEl.innerHTML = formatCardGlyph(TARGETS[i]);
+                targetCardEl.style.color = TARGETS[i].Color;
+            }
+
+            feedbackNode.textContent = "";
+            switchDisplay('game');
+            advanceTrial();
+        }
+
+        function advanceTrial() {
+            if (currentTrialCount < trialsMax) {
+                currentCard = {
+                    Color: COLORS[Math.floor(Math.random() * COLORS.length)],
+                    Letter: LETTERS[Math.floor(Math.random() * LETTERS.length)],
+                    Number: NUMBERS[Math.floor(Math.random() * NUMBERS.length)]
+                };
+                
+                stimulusNode.innerHTML = formatCardGlyph(currentCard);
+                stimulusNode.style.color = currentCard.Color;
+                
+                currentTrialCount++;
+                trialCounterNode.textContent = `TRIAL ${currentTrialCount} OF ${trialsMax}`;
+            } else {
+                terminateBlock();
+            }
+        }
+
+        function handleInputSelection(targetIndex) {
+            if (!isGameRunning || !currentCard) return;
+
+            const targetChosen = TARGETS[targetIndex];
+            const isMatchCorrect = (currentCard[currentRule] === targetChosen[currentRule]);
+
+            if (isMatchCorrect) {
+                feedbackNode.textContent = "CORRECT";
+                feedbackNode.style.color = "#00ff00";
+                scoreCorrect++;
+                consecutiveCorrectCount++;
+            } else {
+                feedbackNode.textContent = "WRONG";
+                feedbackNode.style.color = "#ff3333";
+                totalErrors++;
+                
+                // Track perseverative context failures
+                if (previousRule && currentCard[previousRule] === targetChosen[previousRule]) {
+                    perseverativeErrors++;
+                }
+                consecutiveCorrectCount = 0;
+            }
+
+            // Shift current categorization criteria if correctness thresholds are fulfilled
+            if (consecutiveCorrectCount >= 5) {
+                previousRule = currentRule;
+                const filteredRules = RULES.filter(rule => rule !== currentRule);
+                currentRule = filteredRules[Math.floor(Math.random() * filteredRules.length)];
+                consecutiveCorrectCount = 0;
+            }
+
+            advanceTrial();
+        }
+
+        function terminateBlock() {
+            isGameRunning = false;
+            currentCard = null;
+
+            const nonPerseverative = totalErrors - perseverativeErrors;
+            const absoluteAccuracy = (scoreCorrect / Math.max(currentTrialCount, 1)) * 100;
+
+            document.getElementById('res-trials').textContent = currentTrialCount;
+            document.getElementById('res-score').textContent = scoreCorrect;
+            document.getElementById('res-errors').textContent = totalErrors;
+            document.getElementById('res-perseverative').textContent = perseverativeErrors;
+            document.getElementById('res-non-perseverative').textContent = nonPerseverative;
+            document.getElementById('res-accuracy').textContent = `${absoluteAccuracy.toFixed(1)}%`;
+
+            switchDisplay('report');
+        }
+
+        // --- EVENT INTERFACE ROUTERS ---
+        function registerTappingInterface(elementNode, index) {
+            elementNode.addEventListener('touchstart', (e) => {
+                e.preventDefault(); // Prevents touch-to-click latency scaling loops
+                handleInputSelection(index);
+            });
+            elementNode.addEventListener('click', () => {
+                handleInputSelection(index);
+            });
+        }
+
+        for (let i = 0; i < 4; i++) {
+            registerTappingInterface(document.getElementById(`target-${i}`), i);
+        }
+
+        // Initialization binding mapping hook
+        const triggerBtn = document.getElementById('start-btn');
+        triggerBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            initApparatus();
+        });
+        triggerBtn.addEventListener('click', initApparatus);
+
+        // Hardware Desktop keyboard mappings fallback framework
+        window.addEventListener('keydown', (e) => {
+            const hotkey = e.key.toLowerCase();
+            if (viewScreens.setup.classList.contains('active')) {
+                if (hotkey === 's') {
+                    initApparatus();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
