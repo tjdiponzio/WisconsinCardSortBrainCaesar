@@ -171,9 +171,9 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 14px 0;
+            padding: 12px 0;
             border-bottom: 1px solid #222222;
-            font-size: 16px;
+            font-size: 15px;
         }
         .ledger-line:last-child {
             border-bottom: none;
@@ -188,7 +188,7 @@
         }
         .ledger-line.highlight .ledger-value {
             color: #00ff00;
-            font-size: 18px;
+            font-size: 17px;
         }
 
         #close-btn {
@@ -236,11 +236,12 @@
 
         <div class="ledger-box">
             <div class="ledger-line"><span class="ledger-label">Total Completed Trials</span><span class="ledger-value" id="res-trials">0</span></div>
+            <div class="ledger-line highlight"><span class="ledger-label">Categories Completed (≥5 Correct)</span><span class="ledger-value" id="res-categories">0</span></div>
             <div class="ledger-line"><span class="ledger-label">Correct Responses</span><span class="ledger-value" id="res-score">0</span></div>
             <div class="ledger-line"><span class="ledger-label">Total Errors</span><span class="ledger-value" id="res-errors">0</span></div>
             <div class="ledger-line"><span class="ledger-label">Perseverative Errors</span><span class="ledger-value" id="res-perseverative">0</span></div>
             <div class="ledger-line"><span class="ledger-label">Non-Perseverative Errors</span><span class="ledger-value" id="res-non-perseverative">0</span></div>
-            <div class="ledger-line highlight"><span class="ledger-label">Overall Categorization Accuracy</span><span class="ledger-value" id="res-accuracy">0.0%</span></div>
+            <div class="ledger-line"><span class="ledger-label">Overall Categorization Accuracy</span><span class="ledger-value" id="res-accuracy">0.0%</span></div>
         </div>
 
         <button class="action-btn" id="close-btn" onclick="window.location.reload()">Restart Task</button>
@@ -269,6 +270,7 @@
         let scoreCorrect = 0;
         let totalErrors = 0;
         let perseverativeErrors = 0;
+        let categoriesCompleted = 0;
         let consecutiveCorrectCount = 0;
         let isGameRunning = false;
 
@@ -295,11 +297,11 @@
 
         // --- CORE LOGIC HANDLERS ---
         function initApparatus() {
-            // Initialize metrics variables
             currentTrialCount = 0;
             scoreCorrect = 0;
             totalErrors = 0;
             perseverativeErrors = 0;
+            categoriesCompleted = 0;
             consecutiveCorrectCount = 0;
             previousRule = null;
             
@@ -360,8 +362,9 @@
                 consecutiveCorrectCount = 0;
             }
 
-            // Shift current categorization criteria if correctness thresholds are fulfilled
+            // Shift current categorization criteria if correctness thresholds (5 correct) are fulfilled
             if (consecutiveCorrectCount >= 5) {
+                categoriesCompleted++;
                 previousRule = currentRule;
                 const filteredRules = RULES.filter(rule => rule !== currentRule);
                 currentRule = filteredRules[Math.floor(Math.random() * filteredRules.length)];
@@ -379,6 +382,7 @@
             const absoluteAccuracy = (scoreCorrect / Math.max(currentTrialCount, 1)) * 100;
 
             document.getElementById('res-trials').textContent = currentTrialCount;
+            document.getElementById('res-categories').textContent = categoriesCompleted;
             document.getElementById('res-score').textContent = scoreCorrect;
             document.getElementById('res-errors').textContent = totalErrors;
             document.getElementById('res-perseverative').textContent = perseverativeErrors;
@@ -391,7 +395,7 @@
         // --- EVENT INTERFACE ROUTERS ---
         function registerTappingInterface(elementNode, index) {
             elementNode.addEventListener('touchstart', (e) => {
-                e.preventDefault(); // Prevents touch-to-click latency scaling loops
+                e.preventDefault();
                 handleInputSelection(index);
             });
             elementNode.addEventListener('click', () => {
@@ -403,7 +407,6 @@
             registerTappingInterface(document.getElementById(`target-${i}`), i);
         }
 
-        // Initialization binding mapping hook
         const triggerBtn = document.getElementById('start-btn');
         triggerBtn.addEventListener('touchstart', (e) => {
             e.preventDefault();
@@ -411,7 +414,6 @@
         });
         triggerBtn.addEventListener('click', initApparatus);
 
-        // Hardware Desktop keyboard mappings fallback framework
         window.addEventListener('keydown', (e) => {
             const hotkey = e.key.toLowerCase();
             if (viewScreens.setup.classList.contains('active')) {
