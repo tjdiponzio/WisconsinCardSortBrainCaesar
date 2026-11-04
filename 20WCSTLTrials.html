@@ -1,547 +1,336 @@
-import math
-import random
-import tkinter as tk
-from tkinter import ttk
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Category Sorting Game - 20 Rule Challenge</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { user-select: none; -webkit-user-select: none; }
+        button, select, input { touch-action: manipulation; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col items-center p-2 sm:p-6">
 
+  <div id="app" class="w-full max-w-4xl bg-slate-900 shadow-2xl rounded-2xl overflow-hidden border border-slate-800 flex flex-col min-h-[720px]">
+    <!-- Dynamic Content Injected Here -->
+  </div>
 
-class WCSTGame:
+  <script>
+    // ==========================================
+    // CONFIGURATION & CONSTANTS
+    // ==========================================
+    const COLORS = ["Blue", "Red", "Green", "Purple"];
+    const LETTERS = ["A", "B", "C", "D"];
+    const SHAPES = ["○", "□", "△", "⌂"];
+    const RULES = ["Color", "Letter", "Shape"];
 
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Category Sorting Game - 20 Rule Challenge")
-        self.root.geometry("950x880")
-        self.root.configure(bg="black")
+    const COLOR_MAP = {
+        "Blue": "#1e90ff",
+        "Red": "#ff4757",
+        "Green": "#2ed573",
+        "Purple": "#a55eea"
+    };
 
-        # Configuration
-        self.colors = ("Blue", "Red", "Green", "Purple")
-        self.letters = ("A", "B", "C", "D")
-        self.shapes = ("○", "□", "△", "⌂")
-        self.rules = ["Color", "Letter", "Shape"]
+    const TARGETS = [
+        {"Color": "Blue", "Letter": "A", "Shape": "○"},
+        {"Color": "Red", "Letter": "B", "Shape": "□"},
+        {"Color": "Green", "Letter": "C", "Shape": "△"},
+        {"Color": "Purple", "Letter": "D", "Shape": "⌂"}
+    ];
 
-        self.color_map = {
-            "Blue": "#1e90ff",
-            "Red": "#ff0000",
-            "Green": "#2ed573",
-            "Purple": "#a55eea",
+    const TOTAL_BLOCKS = 20;
+    const MAX_SUBTRIALS = 10;
+    const MASTERY_THRESHOLD = 5;
+
+    // ==========================================
+    // STATE MANAGEMENT
+    // ==========================================
+    let state = {
+        currentBlock: 0,
+        currentSubtrial: 0,
+        consecutiveCorrect: 0,
+        currentRule: null,
+        gameActive: false,
+        blockHistory: [],
+        currentBlockHits: 0,
+        currentCard: null,
+        feedbackText: "",
+        feedbackColor: "",
+        screen: "start" // "start" | "game" | "buffer" | "results"
+    };
+
+    // ==========================================
+    // GAME CONTROLLER LOGIC
+    // ==========================================
+    function startGame() {
+        state.gameActive = true;
+        state.currentBlock = 0;
+        state.blockHistory = [];
+        startNewBlock();
+    }
+
+    function startNewBlock() {
+        state.currentBlock++;
+        if (state.currentBlock > TOTAL_BLOCKS) {
+            stopGame();
+            return;
         }
 
-        self.targets = [
-            {"Color": "Blue", "Letter": "A", "Shape": "○"},
-            {"Color": "Red", "Letter": "B", "Shape": "□"},
-            {"Color": "Green", "Letter": "C", "Shape": "△"},
-            {"Color": "Purple", "Letter": "D", "Shape": "⌂"},
-        ]
+        // Pick a rule different from the previous rule if possible
+        let availableRules = RULES.filter(r => r !== state.currentRule);
+        state.currentRule = availableRules[Math.floor(Math.random() * availableRules.length)];
 
-        # Block & Trial Controls
-        self.total_blocks = 20
-        self.max_subtrials = 10
-        self.mastery_threshold = 5
+        state.currentSubtrial = 0;
+        state.consecutiveCorrect = 0;
+        state.currentBlockHits = 0;
+        state.feedbackText = "";
+        state.screen = "game";
 
-        self.current_block = 0
-        self.current_subtrial = 0
-        self.consecutive_correct = 0
-        self.current_rule = None
-        self.game_active = False
+        nextSubtrial();
+    }
 
-        # Analytics across all 20 main blocks
-        self.block_history = []
-        self.current_block_hits = 0
+    function nextSubtrial() {
+        if (state.currentSubtrial < MAX_SUBTRIALS) {
+            state.currentSubtrial++;
+            state.currentCard = {
+                "Color": COLORS[Math.floor(Math.random() * COLORS.length)],
+                "Letter": LETTERS[Math.floor(Math.random() * LETTERS.length)],
+                "Shape": SHAPES[Math.floor(Math.random() * SHAPES.length)]
+            };
+            state.feedbackText = "";
+            renderUI();
+        } else {
+            finishBlock(false);
+        }
+    }
 
-        self.setup_ui()
+    function makeChoice(targetIdx) {
+        if (!state.gameActive || state.screen !== "game") return;
 
-    def setup_ui(self):
-        self.main_frame = tk.Frame(self.root, bg="black")
-        self.main_frame.pack(expand=True, fill="both")
+        let target = TARGETS[targetIdx];
+        let isCorrect = (state.currentCard[state.currentRule] === target[state.currentRule]);
 
-        tk.Label(
-            self.main_frame,
-            text="20-Rule Category Sorting Challenge",
-            font=("Arial", 22, "bold"),
-            bg="black",
-            fg="white",
-        ).pack(pady=(15, 5))
+        if (isCorrect) {
+            state.feedbackText = "✓ CORRECT";
+            state.feedbackColor = "#2ed573";
+            state.consecutiveCorrect++;
+            state.currentBlockHits++;
+        } else {
+            state.feedbackText = "✗ INCORRECT";
+            state.feedbackColor = "#ff4757";
+            state.consecutiveCorrect = 0;
+        }
 
-        self.info_label = tk.Label(
-            self.main_frame,
-            text=(
-                "Find the hidden rule for each block!\n"
-                "Get 5 correct in a row within 10 subtrials to master the rule.\n"
-                "There are 20 total blocks."
-            ),
-            font=("Arial", 12),
-            bg="black",
-            fg="#AAAAAA",
-            justify="center",
-        )
-        self.info_label.pack(pady=5)
+        renderUI();
 
-        # Start Button
-        self.start_button = tk.Button(
-            self.main_frame,
-            text="START GAME",
-            font=("Arial", 12, "bold"),
-            command=self.start_game,
-            bg="#007bff",
-            fg="white",
-            activebackground="#0056b3",
-            activeforeground="white",
-            padx=25,
-            pady=8,
-            relief="raised",
-        )
-        self.start_button.pack(pady=10)
-
-        # Status Bar Header
-        self.status_label = tk.Label(
-            self.main_frame,
-            text="Press START to begin",
-            font=("Arial", 14, "bold"),
-            bg="black",
-            fg="#00FF00",
-        )
-        self.status_label.pack(pady=5)
-
-        # Container for Active Gameplay Interface
-        self.game_play_frame = tk.Frame(self.main_frame, bg="black")
-        self.game_play_frame.pack(expand=True, fill="both")
-
-        # Target Containers Layout
-        self.target_container = tk.Frame(self.game_play_frame, bg="black")
-        self.target_container.pack(pady=15)
-
-        self.target_cards = []
-        for i in range(4):
-            card_frame = tk.Frame(
-                self.target_container,
-                bg="white",
-                highlightbackground="#1a365d",
-                highlightthickness=4,
-                width=130,
-                height=180,
-            )
-            card_frame.grid(row=0, column=i, padx=12)
-            card_frame.pack_propagate(False)
-
-            card_frame.bind(
-                "<Button-1>", lambda e, idx=i: self.make_choice(idx)
-            )
-
-            lbl_color = tk.Label(
-                card_frame,
-                text=self.targets[i]["Color"],
-                font=("Arial", 14, "bold"),
-                bg="white",
-                fg=self.color_map[self.targets[i]["Color"]],
-            )
-            lbl_color.pack(anchor="w", padx=15, pady=(15, 5))
-            lbl_color.bind("<Button-1>", lambda e, idx=i: self.make_choice(idx))
-
-            lbl_letter = tk.Label(
-                card_frame,
-                text=self.targets[i]["Letter"],
-                font=("Arial", 14),
-                bg="white",
-                fg="black",
-            )
-            lbl_letter.pack(anchor="w", padx=15, pady=5)
-            lbl_letter.bind(
-                "<Button-1>", lambda e, idx=i: self.make_choice(idx)
-            )
-
-            lbl_shape = tk.Label(
-                card_frame,
-                text=self.targets[i]["Shape"],
-                font=("Arial", 22),
-                bg="white",
-                fg="black",
-            )
-            lbl_shape.pack(anchor="w", padx=12, pady=(5, 15))
-            lbl_shape.bind("<Button-1>", lambda e, idx=i: self.make_choice(idx))
-
-            self.target_cards.append(card_frame)
-
-        # Stimulus Card Setup
-        self.stimulus_frame = tk.Frame(
-            self.game_play_frame,
-            bg="white",
-            highlightbackground="#1a365d",
-            highlightthickness=4,
-            width=130,
-            height=180,
-        )
-        self.stimulus_frame.pack(pady=15)
-        self.stimulus_frame.pack_propagate(False)
-
-        self.stim_color_lbl = tk.Label(
-            self.stimulus_frame, text="", font=("Arial", 14, "bold"), bg="white"
-        )
-        self.stim_color_lbl.pack(anchor="w", padx=15, pady=(15, 5))
-
-        self.stim_letter_lbl = tk.Label(
-            self.stimulus_frame,
-            text="?",
-            font=("Arial", 14),
-            bg="white",
-            fg="black",
-        )
-        self.stim_letter_lbl.pack(anchor="w", padx=15, pady=5)
-
-        self.stim_shape_lbl = tk.Label(
-            self.stimulus_frame,
-            text="",
-            font=("Arial", 22),
-            bg="white",
-            fg="black",
-        )
-        self.stim_shape_lbl.pack(anchor="w", padx=12, pady=(5, 15))
-
-        self.feedback_label = tk.Label(
-            self.game_play_frame, text="", font=("Arial", 18, "bold"), bg="black"
-        )
-        self.feedback_label.pack(pady=5)
-
-        # --- INTERMISSION BUFFER FRAME (Between Main 20 Rules) ---
-        self.buffer_frame = tk.Frame(
-            self.main_frame, bg="#111111", pady=30, padx=30
-        )
-
-        self.buffer_title_lbl = tk.Label(
-            self.buffer_frame,
-            text="RULE COMPLETED",
-            font=("Arial", 20, "bold"),
-            bg="#111111",
-            fg="#00FF00",
-        )
-        self.buffer_title_lbl.pack(pady=10)
-
-        self.buffer_details_lbl = tk.Label(
-            self.buffer_frame,
-            text="",
-            font=("Arial", 14),
-            bg="#111111",
-            fg="white",
-            justify="center",
-        )
-        self.buffer_details_lbl.pack(pady=15)
-
-        self.continue_button = tk.Button(
-            self.buffer_frame,
-            text="CONTINUE TO NEXT RULE",
-            font=("Arial", 12, "bold"),
-            command=self.start_next_block_from_buffer,
-            bg="#2ed573",
-            fg="black",
-            padx=20,
-            pady=8,
-            relief="raised",
-        )
-        self.continue_button.pack(pady=10)
-
-        # Global Key Bindings
-        self.root.bind("<s>", lambda e: self.start_game())
-        self.root.bind("<S>", lambda e: self.start_game())
-        self.root.bind("<q>", lambda e: self.stop_game())
-        self.root.bind("<Q>", lambda e: self.stop_game())
-        self.root.bind("<space>", lambda e: self.handle_space_press())
-        self.root.bind("<Return>", lambda e: self.handle_space_press())
-
-    def handle_space_press(self):
-        if self.buffer_frame.winfo_ismapped():
-            self.start_next_block_from_buffer()
-
-    def start_game(self):
-        if not self.game_active:
-            self.game_active = True
-            self.start_button.pack_forget()
-
-            self.current_block = 0
-            self.block_history = []
-            self.start_new_block()
-
-    def start_new_block(self):
-        self.current_block += 1
-
-        if self.current_block > self.total_blocks:
-            self.stop_game()
-            return
-
-        available_rules = [
-            r for r in self.rules if r != getattr(self, "current_rule", None)
-        ]
-        self.current_rule = random.choice(available_rules)
-
-        self.current_subtrial = 0
-        self.consecutive_correct = 0
-        self.current_block_hits = 0
-
-        # Reveal game layout, hide buffer
-        self.buffer_frame.pack_forget()
-        self.game_play_frame.pack(expand=True, fill="both")
-        self.feedback_label.config(text="")
-
-        self.next_subtrial()
-
-    def next_subtrial(self):
-        if self.current_subtrial < self.max_subtrials:
-            self.current_subtrial += 1
-
-            self.current_card = {
-                "Color": random.choice(self.colors),
-                "Letter": random.choice(self.letters),
-                "Shape": random.choice(self.shapes),
+        setTimeout(() => {
+            if (state.consecutiveCorrect >= MASTERY_THRESHOLD) {
+                finishBlock(true);
+            } else {
+                nextSubtrial();
             }
+        }, 600);
+    }
 
-            self.stim_color_lbl.config(
-                text=self.current_card["Color"],
-                fg=self.color_map[self.current_card["Color"]],
-            )
-            self.stim_letter_lbl.config(text=self.current_card["Letter"])
-            self.stim_shape_lbl.config(text=self.current_card["Shape"])
+    function finishBlock(mastered) {
+        state.blockHistory.push({
+            Block: state.currentBlock,
+            Rule: state.currentRule,
+            Mastered: mastered,
+            Subtrials_Taken: state.currentSubtrial,
+            Correct_Hits: state.currentBlockHits
+        });
 
-            self.status_label.config(
-                text=f"Rule {self.current_block} / {self.total_blocks}  |  Subtrial {self.current_subtrial} / {self.max_subtrials}"
-            )
-        else:
-            self.finish_block(mastered=False)
+        if (state.currentBlock >= TOTAL_BLOCKS) {
+            stopGame();
+        } else {
+            state.screen = "buffer";
+            renderUI();
+        }
+    }
 
-    def make_choice(self, target_idx):
-        if not self.game_active or self.buffer_frame.winfo_ismapped():
-            return
+    function startNextBlockFromBuffer() {
+        startNewBlock();
+    }
 
-        target = self.targets[target_idx]
-        is_correct = (
-            self.current_card[self.current_rule] == target[self.current_rule]
-        )
+    function stopGame() {
+        state.gameActive = false;
+        state.screen = "results";
+        renderUI();
+    }
 
-        if is_correct:
-            self.feedback_label.config(text="✓ CORRECT", fg="#2ed573")
-            self.consecutive_correct += 1
-            self.current_block_hits += 1
-        else:
-            self.feedback_label.config(text="✗ INCORRECT", fg="#ff4757")
-            self.consecutive_correct = 0
-
-        # Mastered rule check
-        if self.consecutive_correct >= self.mastery_threshold:
-            self.finish_block(mastered=True)
-        else:
-            self.next_subtrial()
-
-    def finish_block(self, mastered):
-        # Save historical log for this completed rule block
-        self.block_history.append(
-            {
-                "Block": self.current_block,
-                "Rule": self.current_rule,
-                "Mastered": mastered,
-                "Subtrials_Taken": self.current_subtrial,
-                "Correct_Hits": self.current_block_hits,
+    // ==========================================
+    // KEYBOARD LISTENERS
+    // ==========================================
+    window.addEventListener('keydown', (e) => {
+        if (e.key === ' ' || e.key === 'Enter') {
+            if (state.screen === 'buffer') {
+                startNextBlockFromBuffer();
             }
-        )
+        }
+        if (e.key === 's' || e.key === 'S') {
+            if (state.screen === 'start') {
+                startGame();
+            }
+        }
+        if (e.key === 'q' || e.key === 'Q') {
+            if (state.screen === 'results') {
+                window.close();
+            } else if (state.gameActive) {
+                stopGame();
+            }
+        }
+    });
 
-        if self.current_block >= self.total_blocks:
-            self.stop_game()
-        else:
-            self.show_intermission_buffer(mastered)
+    // ==========================================
+    // UI RENDERING ENGINE
+    // ==========================================
+    function renderUI() {
+        const app = document.getElementById('app');
+        
+        if (state.screen === "start") {
+            app.innerHTML = `
+                <div class="flex flex-col items-center justify-center flex-grow p-6 text-center space-y-6 my-auto">
+                    <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-wide">20-Rule Category Sorting Challenge</h1>
+                    <p class="text-slate-400 text-sm sm:text-base max-w-md leading-relaxed">
+                        Find the hidden sorting rule for each block!<br>
+                        Get 5 correct in a row within 10 subtrials to master each rule.<br>There are 20 total blocks.
+                    </p>
+                    <button onclick="startGame()" class="bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold px-8 py-3.5 rounded-xl shadow-lg transition-all text-base">
+                        START GAME (or press 'S')
+                    </button>
+                    <span class="text-xs text-slate-500">Shortcuts: Press 'S' to Start, 'Q' to Quit</span>
+                </div>
+            `;
+        } 
+        else if (state.screen === "game") {
+            app.innerHTML = `
+                <!-- Header Status -->
+                <div class="bg-slate-950 py-3 px-6 flex justify-between items-center border-b border-slate-800 text-xs sm:text-sm font-semibold">
+                    <span class="text-emerald-400">Rule ${state.currentBlock} / ${TOTAL_BLOCKS}</span>
+                    <span class="text-slate-400">Subtrial ${state.currentSubtrial} / ${MAX_SUBTRIALS}</span>
+                </div>
 
-    def show_intermission_buffer(self, mastered):
-        """Swaps active board for inter-block buffer screen."""
-        self.game_play_frame.pack_forget()
+                <div class="flex flex-col items-center justify-center flex-grow p-4 sm:p-8 space-y-6">
+                    <h2 class="text-xs sm:text-sm uppercase tracking-widest text-slate-400 font-bold">Click matching target card:</h2>
 
-        if mastered:
-            title_text = f"RULE {self.current_block} MASTERED!"
-            title_color = "#2ed573"
-            detail_msg = f"You figured out the rule in {self.current_subtrial} subtrials!"
-        else:
-            title_text = f"RULE {self.current_block} COMPLETE"
-            title_color = "#ff4757"
-            detail_msg = f"Reached max {self.max_subtrials} subtrials without mastering this rule."
+                    <!-- 4 Target Cards -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 w-full max-w-2xl">
+                        ${TARGETS.map((t, idx) => `
+                            <div onclick="makeChoice(${idx})" class="bg-white text-slate-900 rounded-xl p-4 shadow-md border-4 border-slate-700 hover:border-blue-500 cursor-pointer transition-all flex flex-col justify-between h-40 select-none active:scale-95">
+                                <div class="font-bold text-base" style="color: ${COLOR_MAP[t.Color]}">${t.Color}</div>
+                                <div class="text-base text-slate-800">${t.Letter}</div>
+                                <div class="text-3xl text-slate-800">${t.Shape}</div>
+                            </div>
+                        `).join('')}
+                    </div>
 
-        next_block_num = self.current_block + 1
-        detail_msg += f"\n\nReady for Rule {next_block_num} of {self.total_blocks}?\nPress SPACE or click below to proceed."
+                    <!-- Stimulus Card -->
+                    <div class="mt-4 flex flex-col items-center space-y-2">
+                        <span class="text-xs text-slate-500 font-medium">Stimulus Card</span>
+                        <div class="bg-white text-slate-900 rounded-xl p-4 shadow-xl border-4 border-blue-600 w-32 h-40 flex flex-col justify-between">
+                            <div class="font-bold text-base" style="color: ${COLOR_MAP[state.currentCard.Color]}">${state.currentCard.Color}</div>
+                            <div class="text-base text-slate-800">${state.currentCard.Letter}</div>
+                            <div class="text-3xl text-slate-800">${state.currentCard.Shape}</div>
+                        </div>
+                    </div>
 
-        self.buffer_title_lbl.config(text=title_text, fg=title_color)
-        self.buffer_details_lbl.config(text=detail_msg)
+                    <!-- Feedback Display -->
+                    <div class="h-8 flex items-center justify-center">
+                        <span class="text-lg font-bold" style="color: ${state.feedbackColor}">${state.feedbackText}</span>
+                    </div>
+                </div>
+            `;
+        }
+        else if (state.screen === "buffer") {
+            const lastBlock = state.blockHistory[state.blockHistory.length - 1];
+            const mastered = lastBlock.Mastered;
+            const titleText = mastered ? `RULE ${state.currentBlock} MASTERED!` : `RULE ${state.currentBlock} COMPLETE`;
+            const titleColor = mastered ? "text-emerald-400" : "text-rose-500";
+            const detailMsg = mastered 
+                ? `You figured out the rule in ${lastBlock.Subtrials_Taken} subtrials!` 
+                : `Reached max ${MAX_SUBTRIALS} subtrials without mastering this rule.`;
 
-        self.status_label.config(
-            text=f"Intermission — Completed Rule {self.current_block} of {self.total_blocks}"
-        )
-        self.buffer_frame.pack(expand=True, fill="both", padx=50, pady=30)
+            app.innerHTML = `
+                <div class="flex flex-col items-center justify-center flex-grow p-8 text-center space-y-6 my-auto">
+                    <h2 class="text-2xl sm:text-3xl font-extrabold ${titleColor}">${titleText}</h2>
+                    <p class="text-slate-300 text-base">${detailMsg}</p>
+                    <p class="text-slate-400 text-sm">Ready for Rule ${state.currentBlock + 1} of ${TOTAL_BLOCKS}?</p>
+                    <button onclick="startNextBlockFromBuffer()" class="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-slate-950 font-bold px-8 py-3.5 rounded-xl shadow-lg transition-all text-base">
+                        CONTINUE TO NEXT RULE (or press SPACE)
+                    </button>
+                </div>
+            `;
+        }
+        else if (state.screen === "results") {
+            const totalFinished = state.blockHistory.length;
+            const masteredCount = state.blockHistory.filter(b => b.Mastered).length;
+            const subtrialCounts = state.blockHistory.map(b => b.Subtrials_Taken);
+            const meanSubtrials = subtrialCounts.reduce((a, b) => a + b, 0) / (totalFinished || 1);
 
-    def start_next_block_from_buffer(self):
-        self.start_new_block()
+            let variance = 0;
+            if (subtrialCounts.length > 1) {
+                variance = subtrialCounts.reduce((a, b) => a + Math.pow(b - meanSubtrials, 2), 0) / (subtrialCounts.length - 1);
+            }
+            const stdDev = Math.sqrt(variance);
 
-    def stop_game(self):
-        self.game_active = False
-        self.show_results()
+            let reportText = [
+                "===========================================",
+                " EXPERIMENT SUMMARY & ANALYTICS            ",
+                "===========================================",
+                `Rules Mastered: ${masteredCount} / ${totalFinished}`,
+                `Mean Subtrials: ${meanSubtrials.toFixed(2)}`,
+                `Std Deviation (σ): ${stdDev.toFixed(2)}`,
+                "-------------------------------------------",
+                "Rule # | Target Rule        | Status   | Subtrials Taken | Accuracy",
+                "------------------------------------------------------------------"
+            ];
 
-    def show_results(self):
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
+            state.blockHistory.forEach(r => {
+                let statusStr = r.Mastered ? "MASTERED" : "FAILED";
+                let accVal = Math.round((r.Correct_Hits / r.Subtrials_Taken) * 100);
+                reportText.push(
+                    `Rule ${String(r.Block).padEnd(2)} | ${r.Rule.padEnd(18)} | ${statusStr.padEnd(8)} | ${String(r.Subtrials_Taken + " / 10").padEnd(15)} | ${accVal}%`
+                );
+            });
 
-        total_finished_blocks = len(self.block_history)
-        if total_finished_blocks == 0:
-            tk.Label(
-                self.main_frame,
-                text="Game ended early with no data.",
-                font=("Arial", 16),
-                bg="black",
-                fg="white",
-            ).pack(pady=50)
-            return
+            const fullReport = reportText.join('\n');
 
-        mastered_count = sum(1 for b in self.block_history if b["Mastered"])
-        subtrial_counts = [b["Subtrials_Taken"] for b in self.block_history]
+            app.innerHTML = `
+                <div class="flex flex-col h-[750px] p-4 sm:p-6 overflow-y-auto">
+                    <h2 class="text-xl sm:text-2xl font-bold text-emerald-400 mb-2 text-center">EXPERIMENT SUMMARY & ANALYTICS</h2>
+                    
+                    <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl my-3 text-center shadow-inner">
+                        <p class="text-sm sm:text-base font-bold text-white">
+                            Rules Mastered: <span class="text-emerald-400">${masteredCount} / ${totalFinished}</span> &nbsp;|&nbsp; 
+                            Mean Subtrials: <span class="text-blue-400">${meanSubtrials.toFixed(2)}</span> &nbsp;|&nbsp; 
+                            Std Dev (σ): <span class="text-purple-400">${stdDev.toFixed(2)}</span>
+                        </p>
+                    </div>
 
-        mean_subtrials = sum(subtrial_counts) / len(subtrial_counts)
+                    <div class="flex justify-center gap-3 my-2">
+                        <button onclick="navigator.clipboard.writeText(\`${fullReport}\`); alert('Results copied to clipboard!');" class="bg-sky-600 hover:bg-sky-500 active:scale-95 text-white font-bold px-5 py-2 rounded-xl shadow transition-all text-xs sm:text-sm">
+                            📋 Copy Results to Clipboard
+                        </button>
+                        <button onclick="window.location.reload()" class="bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold px-5 py-2 rounded-xl shadow transition-all text-xs sm:text-sm">
+                            🔄 Play Again
+                        </button>
+                    </div>
 
-        if len(subtrial_counts) > 1:
-            variance = sum(
-                (x - mean_subtrials) ** 2 for x in subtrial_counts
-            ) / (len(subtrial_counts) - 1)
-            std_dev = math.sqrt(variance)
-        else:
-            std_dev = 0.0
+                    <div class="flex-grow flex flex-col mt-3">
+                        <span class="text-xs font-bold text-slate-400 mb-1">Detailed Log:</span>
+                        <textarea readonly class="w-full flex-grow bg-slate-950 text-slate-300 font-mono text-xs p-3 rounded-xl border border-slate-800 resize-none focus:outline-none">${fullReport}</textarea>
+                    </div>
+                </div>
+            `;
+        }
+    }
 
-        tk.Label(
-            self.main_frame,
-            text="EXPERIMENT SUMMARY & ANALYTICS",
-            font=("Arial", 22, "bold"),
-            bg="black",
-            fg="#00FF00",
-        ).pack(pady=15)
-
-        metrics_frame = tk.Frame(self.main_frame, bg="#111111", pady=10, padx=15)
-        metrics_frame.pack(pady=10)
-
-        summary_text = (
-            f"Rules Mastered: {mastered_count} / {total_finished_blocks}   |   "
-            f"Mean Subtrials: {mean_subtrials:.2f}   |   "
-            f"Std Deviation (σ): {std_dev:.2f}"
-        )
-        tk.Label(
-            metrics_frame,
-            text=summary_text,
-            font=("Arial", 12, "bold"),
-            bg="#111111",
-            fg="white",
-        ).pack()
-
-        table_container = tk.Frame(self.main_frame, bg="black")
-        table_container.pack(expand=True, fill="both", padx=40, pady=10)
-
-        canvas = tk.Canvas(table_container, bg="black", highlightthickness=0)
-        scrollbar = tk.Scrollbar(
-            table_container, orient="vertical", command=canvas.yview
-        )
-        scrollable_frame = tk.Frame(canvas, bg="black")
-
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all")),
-        )
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
-
-        canvas.pack(side="left", expand=True, fill="both")
-        scrollbar.pack(side="right", fill="y")
-
-        headers = [
-            "Rule #",
-            "Target Rule",
-            "Status",
-            "Subtrials Taken",
-            "Accuracy",
-        ]
-        widths = [10, 20, 18, 18, 16]
-
-        for col_idx, text in enumerate(headers):
-            tk.Label(
-                scrollable_frame,
-                text=text,
-                font=("Arial", 11, "bold"),
-                bg="#222222",
-                fg="#00FF00",
-                width=widths[col_idx],
-                borderwidth=1,
-                relief="solid",
-                pady=5,
-            ).grid(row=0, column=col_idx, sticky="nsew")
-
-        for idx, row in enumerate(self.block_history):
-            bg_color = "#111111" if idx % 2 == 0 else "#1c1c1c"
-            status_str = "MASTERED" if row["Mastered"] else "FAILED"
-            status_fg = "#00FF00" if row["Mastered"] else "#FF4444"
-
-            acc_val = (row["Correct_Hits"] / row["Subtrials_Taken"]) * 100
-
-            tk.Label(
-                scrollable_frame,
-                text=f"Rule {row['Block']}",
-                font=("Arial", 10),
-                bg=bg_color,
-                fg="white",
-                width=widths[0],
-                borderwidth=1,
-                relief="solid",
-            ).grid(row=idx + 1, column=0, sticky="ew")
-            tk.Label(
-                scrollable_frame,
-                text=row["Rule"],
-                font=("Arial", 10, "bold"),
-                bg=bg_color,
-                fg="#FFCC00",
-                width=widths[1],
-                borderwidth=1,
-                relief="solid",
-            ).grid(row=idx + 1, column=1, sticky="ew")
-            tk.Label(
-                scrollable_frame,
-                text=status_str,
-                font=("Arial", 10, "bold"),
-                bg=bg_color,
-                fg=status_fg,
-                width=widths[2],
-                borderwidth=1,
-                relief="solid",
-            ).grid(row=idx + 1, column=2, sticky="ew")
-            tk.Label(
-                scrollable_frame,
-                text=f"{row['Subtrials_Taken']} / 10",
-                font=("Arial", 10),
-                bg=bg_color,
-                fg="white",
-                width=widths[3],
-                borderwidth=1,
-                relief="solid",
-            ).grid(row=idx + 1, column=3, sticky="ew")
-            tk.Label(
-                scrollable_frame,
-                text=f"{acc_val:.0f}%",
-                font=("Arial", 10),
-                bg=bg_color,
-                fg="white",
-                width=widths[4],
-                borderwidth=1,
-                relief="solid",
-            ).grid(row=idx + 1, column=4, sticky="ew")
-
-        tk.Button(
-            self.main_frame,
-            text="CLOSE APPLICATION",
-            font=("Arial", 12, "bold"),
-            command=self.root.destroy,
-            bg="#FF3333",
-            fg="white",
-            padx=20,
-            pady=8,
-        ).pack(pady=15)
-
-        self.root.bind("<q>", lambda e: self.root.destroy())
-        self.root.bind("<Q>", lambda e: self.root.destroy())
-
-
-if __name__ == "__main__":
-    root = tk.Tk()
-    game = WCSTGame(root)
-    root.mainloop()
+    // Initial Launch
+    window.addEventListener('DOMContentLoaded', () => {
+        renderUI();
+    });
+  </script>
+</body>
+</html>
